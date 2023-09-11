@@ -52,6 +52,7 @@
 #include "tmr.h"
 #include "svc_sds.h"
 #include "ll_api.h"
+#include "math.h"
 /**************************************************************************************************
   Macros
 **************************************************************************************************/
@@ -83,7 +84,40 @@ enum {
     DATS_SEC_DAT_CCC_IDX,
     DATS_NUM_CCC_IDX
 };
+static void datsSendData(dmConnId_t connId , uint8_t *data, uint16_t len);
+/**************************************************************************************************
+  Timer to send sine values
+**************************************************************************************************/
+//these are to be define globally
+wsfHandlerId_t myTimerHandlerId;
+wsfTimer_t myTimer;
 
+static float angle = 0.0;  
+static const float amplitude = 7.5;  
+static const float offset = 12.5;  
+static float sineWaveValues[128]; // we can send 128 values in a 512 byte chunk
+void myTimerHandlerCB(wsfEventMask_t event, wsfMsgHdr_t *pMsg)
+{
+    if( AppConnIsOpen()){
+        // Timer interval
+        uint8_t interval_ms = 100;
+        for (int i = 0; i < 128; i++) {
+            // Generate sine wave value
+            sineWaveValues[i] = (float)(amplitude * sin(angle) + offset);
+            // Increment angle for the next value.
+            angle += 0.01;
+            if (angle >= 2 * M_PI) {
+                angle -= 2 * M_PI;
+            }
+        }
+
+        // Send sine value one at a time
+        datsSendData(AppConnIsOpen() , (uint8_t *)sineWaveValues, 512);
+
+        // ... Your existing code ...
+        //WsfTimerStartMs(&myTimer, interval_ms);
+    }
+}
 /**************************************************************************************************
   Configurable Parameters
 **************************************************************************************************/
@@ -171,11 +205,11 @@ static const smpCfg_t datsSmpCfg = {
 
 /*! configurable parameters for connection parameter update */
 static const appUpdateCfg_t datsUpdateCfg = {
-    0,
+    1000,
     /*! ^ Connection idle period in ms before attempting
     connection parameter update. set to zero to disable */
-    (15 * 8 / 1.25), /*! Minimum connection interval in 1.25ms units */
-    (15 * 12 / 1.25), /*! Maximum connection interval in 1.25ms units */
+    ( 8 / 1.25), /*! Minimum connection interval in 1.25ms units */
+    ( 12 / 1.25), /*! Maximum connection interval in 1.25ms units */
     0, /*! Connection latency */
     600, /*! Supervision timeout in 10ms units */
     5 /*! Number of update attempts before giving up */
@@ -184,7 +218,7 @@ static const appUpdateCfg_t datsUpdateCfg = {
 /*! ATT configurable parameters (increase MTU) */
 static const attCfg_t datsAttCfg = {
     15, /* ATT server service discovery connection idle timeout in seconds */
-    241, /* desired ATT MTU */
+    ATT_MAX_MTU, /* desired ATT MTU */
     ATT_MAX_TRANS_TIMEOUT, /* transcation timeout in seconds */
     4 /* number of queued prepare writes supported by server */
 };
@@ -216,10 +250,10 @@ static const uint8_t datsScanDataDisc[] = {
     /*! device name */
     5, /*! length */
     DM_ADV_TYPE_LOCAL_NAME, /*! AD type */
-    'D',
-    'A',
+    'M',
     'T',
-    'S'
+    'U',
+    'x'
 };
 
 /**************************************************************************************************
@@ -278,13 +312,12 @@ void oobRxCback(void)
  *  \return None.
  */
 /*************************************************************************************************/
-static void datsSendData(dmConnId_t connId)
+static void datsSendData(dmConnId_t connId , uint8_t *data, uint16_t len)
 {
-    uint8_t str[] = "hello back";
 
     if (AttsCccEnabled(connId, DATS_WP_DAT_CCC_IDX)) {
         /* send notification */
-        AttsHandleValueNtf(connId, WP_DAT_HDL, sizeof(str), str);
+        AttsHandleValueNtf(connId, WP_DAT_HDL, len, data);
     }
 }
 
@@ -424,18 +457,18 @@ uint8_t datsWpWriteCback(dmConnId_t connId, uint16_t handle, uint8_t operation, 
                          uint16_t len, uint8_t *pValue, attsAttr_t *pAttr)
 {
     static uint32_t packetCount = 0;
-    if (len < 64) {
-        /* print received data if not a speed test message */
-        APP_TRACE_INFO0((const char *)pValue);
-
-        /* send back some data */
-        datsSendData(connId);
-    } else {
-        APP_TRACE_INFO1("Speed test packet Count [%d]", packetCount++);
-        if (packetCount >= 5000) {
-            packetCount = 0;
-        }
+  
+    APP_TRACE_INFO1("Recevied: %d bytes", len);
+    /* print received data*/
+    APP_TRACE_INFO0((const char *)pValue);
+    // if receveied data is "Go!" then start sending data
+    if (strncmp((const char *)pValue, "Go!", 3) == 0) {
+        WsfTimerStartMs(&myTimer, 10);
     }
+
+    /* send back some data */
+    //datsSendData(connId);
+    
     return ATT_SUCCESS;
 }
 
@@ -802,38 +835,40 @@ static void datsBtnCback(uint8_t btn)
     {
         switch (btn) {
 #if (BT_VER > 8)
-        case APP_UI_BTN_2_SHORT: {
-            static uint32_t coded_phy_cnt = 0;
-            /* Toggle PHY Test Mode */
-            coded_phy_cnt++;
-            switch (coded_phy_cnt & 0x3) {
-            case 0:
-                /* 1M PHY */
-                APP_TRACE_INFO0("1 MBit TX and RX PHY Requested");
-                DmSetPhy(connId, HCI_ALL_PHY_ALL_PREFERENCES, HCI_PHY_LE_1M_BIT, HCI_PHY_LE_1M_BIT,
-                         HCI_PHY_OPTIONS_NONE);
-                break;
-            case 1:
-                /* 2M PHY */
-                APP_TRACE_INFO0("2 MBit TX and RX PHY Requested");
-                DmSetPhy(connId, HCI_ALL_PHY_ALL_PREFERENCES, HCI_PHY_LE_2M_BIT, HCI_PHY_LE_2M_BIT,
-                         HCI_PHY_OPTIONS_NONE);
-                break;
-            case 2:
-                /* Coded S2 PHY */
-                APP_TRACE_INFO0("LE Coded S2 TX and RX PHY Requested");
-                DmSetPhy(connId, HCI_ALL_PHY_ALL_PREFERENCES, HCI_PHY_LE_CODED_BIT,
-                         HCI_PHY_LE_CODED_BIT, HCI_PHY_OPTIONS_S2_PREFERRED);
-                break;
-            case 3:
-                /* Coded S8 PHY */
-                APP_TRACE_INFO0("LE Coded S8 TX and RX PHY Requested");
-                DmSetPhy(connId, HCI_ALL_PHY_ALL_PREFERENCES, HCI_PHY_LE_CODED_BIT,
-                         HCI_PHY_LE_CODED_BIT, HCI_PHY_OPTIONS_S8_PREFERRED);
-                break;
-            }
+        case APP_UI_BTN_2_SHORT: //{
+             // ... Your existing code ...
+            WsfTimerStartMs(&myTimer, 2000);
+            // static uint32_t coded_phy_cnt = 0;
+            // /* Toggle PHY Test Mode */
+            // coded_phy_cnt++;
+            // switch (coded_phy_cnt & 0x3) {
+            // case 0:
+            //     /* 1M PHY */
+            //     APP_TRACE_INFO0("1 MBit TX and RX PHY Requested");
+            //     DmSetPhy(connId, HCI_ALL_PHY_ALL_PREFERENCES, HCI_PHY_LE_1M_BIT, HCI_PHY_LE_1M_BIT,
+            //              HCI_PHY_OPTIONS_NONE);
+            //     break;
+            // case 1:
+            //     /* 2M PHY */
+            //     APP_TRACE_INFO0("2 MBit TX and RX PHY Requested");
+            //     DmSetPhy(connId, HCI_ALL_PHY_ALL_PREFERENCES, HCI_PHY_LE_2M_BIT, HCI_PHY_LE_2M_BIT,
+            //              HCI_PHY_OPTIONS_NONE);
+            //     break;
+            // case 2:
+            //     /* Coded S2 PHY */
+            //     APP_TRACE_INFO0("LE Coded S2 TX and RX PHY Requested");
+            //     DmSetPhy(connId, HCI_ALL_PHY_ALL_PREFERENCES, HCI_PHY_LE_CODED_BIT,
+            //              HCI_PHY_LE_CODED_BIT, HCI_PHY_OPTIONS_S2_PREFERRED);
+            //     break;
+            // case 3:
+            //     /* Coded S8 PHY */
+            //     APP_TRACE_INFO0("LE Coded S8 TX and RX PHY Requested");
+            //     DmSetPhy(connId, HCI_ALL_PHY_ALL_PREFERENCES, HCI_PHY_LE_CODED_BIT,
+            //              HCI_PHY_LE_CODED_BIT, HCI_PHY_OPTIONS_S8_PREFERRED);
+            //     break;
+            //}
             break;
-        }
+        //}
 #endif /* BT_VER */
 
         default:
@@ -1022,6 +1057,11 @@ void DatsStart(void)
 
     /* Initialize with button press handler */
     PalBtnInit(btnPressHandler);
+    //some where you have to set up the timer
+	/* Setup the erase handler */
+	myTimerHandlerId = WsfOsSetNextHandler(myTimerHandlerCB);
+	myTimer.handlerId = myTimerHandlerId;
+
 
     /* Reset the device */
     DmDevReset();
