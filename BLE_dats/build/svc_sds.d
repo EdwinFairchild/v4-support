@@ -1,0 +1,32 @@
+/home/eddie/workspace/msdk/Examples/MAX32665/BLE_dats/build/svc_sds.o: \
+ services/svc_sds.c \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/wsf_types.h \
+ /home/eddie/workspace/arm-tools/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+ /home/eddie/workspace/arm-tools/arm-none-eabi/include/stdint.h \
+ /home/eddie/workspace/arm-tools/arm-none-eabi/include/machine/_default_types.h \
+ /home/eddie/workspace/arm-tools/arm-none-eabi/include/sys/features.h \
+ /home/eddie/workspace/arm-tools/arm-none-eabi/include/_newlib_version.h \
+ /home/eddie/workspace/arm-tools/arm-none-eabi/include/sys/_intsup.h \
+ /home/eddie/workspace/arm-tools/arm-none-eabi/include/sys/_stdint.h \
+ /home/eddie/workspace/arm-tools/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-host/include/att_api.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/wsf_timer.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/wsf_os.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/wsf_types.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/wsf_queue.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-host/include/att_defs.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-host/include/att_uuid.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-host/include/dm_api.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-host/include/hci_api.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/hci_defs.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/wsf_os.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/util/bda.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-host/sources/stack/cfg/cfg_stack.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-host/include/smp_defs.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-host/include/sec_api.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/wsf_trace.h \
+ /home/eddie/workspace/arm-tools/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/wsf/include/util/bstream.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-profiles/sources/services/svc_ch.h \
+ services/svc_sds.h \
+ /home/eddie/workspace/msdk/Libraries/Cordio/ble-profiles/sources/services/svc_cfg.h
